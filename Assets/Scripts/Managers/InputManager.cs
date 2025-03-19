@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 public class InputManager : MonoBehaviour
@@ -5,17 +6,30 @@ public class InputManager : MonoBehaviour
     private static InputManager _instance;
     public static InputManager Instance { get { return _instance; } }
 
+    #region 입력값
     [SerializeField] private Vector2 _moveDir;
-
     [SerializeField] private bool _isJump;
-
     [SerializeField] private bool _isDown;
 
+    public Vector2 MoveDir { get { return _moveDir; } }
+    public bool IsJump { get { return _isJump; } }
+    public bool IsDown { get { return _isDown; } }
+    #endregion
+
+    #region InputSystem
     private PlayerInputSystem _playerInputSystem;
     private InputAction _moveAction;
     private InputAction _jumpAction;
     private InputAction _downAction;
     private InputAction _dashAction;
+    #endregion
+
+    #region 플레이어 액션 등록
+    public Action<Vector2> moveAction;
+    public Action jumpAction;
+    public Action downAction;
+    public Action dashAction;
+    #endregion
 
     Rigidbody2D _rb;
 
@@ -45,6 +59,7 @@ public class InputManager : MonoBehaviour
 
         #region 키 입력 이벤트 등록
         _moveAction.performed += OnMove;
+        _moveAction.canceled += OnMove;
 
         _jumpAction.started += OnJumpStarted;
         _jumpAction.canceled += OnJumpCanceled;
@@ -52,10 +67,8 @@ public class InputManager : MonoBehaviour
         _downAction.started += OnDown;
         _downAction.canceled += OnDown;
 
-        _dashAction.started += OnDash;
+        _dashAction.performed += OnDash;
         #endregion
-
-        _rb = GameObject.FindWithTag("Player").GetComponent<Rigidbody2D>();
     }
 
     //private void OnEnable()
@@ -72,20 +85,32 @@ public class InputManager : MonoBehaviour
 
     void OnMove(InputAction.CallbackContext context)
     {
-        _moveDir =  context.ReadValue<Vector2>();
-
-        Debug.Log("Move: " + _moveDir);
+        if(context.phase == InputActionPhase.Performed)
+        {
+            _moveDir = context.ReadValue<Vector2>();
+            //Debug.Log("이동: " + _moveDir);
+        }
+        else if(context.phase == InputActionPhase.Canceled)
+        {
+            _moveDir = Vector2.zero;
+            //Debug.Log("정지: " + _moveDir);
+        }
     }
 
     #region 차지 점프
     void OnJumpStarted(InputAction.CallbackContext context)
     {
-        _isJump = true;
     }
 
     void OnJumpCanceled(InputAction.CallbackContext context)
     {
-        _isJump = false;
+        _isJump = true;
+        if (_isJump)
+        {
+            jumpAction?.Invoke();
+            //Debug.Log("Jump");
+            _isJump = false;
+        }
     }
     #endregion
 
@@ -93,23 +118,23 @@ public class InputManager : MonoBehaviour
     {
         if(context.started)
         {
-            Debug.Log("Down started");
+            //Debug.Log("Down started");
             _isDown = true;
+            downAction?.Invoke();
         }
         else if(context.canceled)
         {
-            Debug.Log("Down cancled");
+            //Debug.Log("Down cancled");
             _isDown = false;
         }
     }
 
     void OnDash(InputAction.CallbackContext context)
     {
-        bool isDash = context.ReadValueAsButton();
-
-        if (isDash)
+        if (context.phase == InputActionPhase.Performed)
         {
             Debug.Log("Dash started");
+            dashAction?.Invoke();
         }
     }
 }
